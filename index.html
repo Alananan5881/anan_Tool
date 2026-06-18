@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安安小工具系列 | 多图对比预览</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden; 
+        }
+
+        /* 顶部导航栏 */
+        .top-bar {
+            min-height: 40px;
+            max-height: 40px;
+            background: #fff;
+            border-bottom: 1px solid #eef1f5;
+            display: flex;
+            align-items: center;
+            padding: 0px 20px;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            box-sizing: border-box;
+        }
+        .top-bar h1 { font-size: 18px; color: #1a2b4a; margin: 0; font-weight: 600; }
+        .btn-back {
+            padding: 4px 12px;
+            border: 1px solid #d0d7de;
+            color: #555;
+            background: #fff;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 20px;
+        }
+        .btn-back:hover { border-color: #007bff; color: #007bff; }
+
+        /* 首页：居中上传区 */
+        #uploadView {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100%;
+        }
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            width: 100%;
+            max-width: 700px;
+            border: 2px dashed #c8d6e5;
+            border-radius: 12px;
+            background-color: #fafbfd;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover { border-color: #007bff; background-color: #f0f7ff; box-shadow: 0 0 0 4px rgba(0,123,255,0.05); }
+        .upload-icon { font-size: 36px; margin-bottom: 12px; color: #007bff; }
+        .upload-title { font-size: 17px; font-weight: 600; color: #2c3e50; margin-bottom: 6px; }
+        .upload-hint { font-size: 13px; color: #8899a6; margin-bottom: 15px; }
+        input[type="file"] { display: none; }
+        .status { margin-top: 12px; color: #555; font-size: 13px; text-align: center; min-height: 18px; font-weight: 500; }
+        .btn-template {
+            padding: 6px 14px; border: 1px solid #d0d7de; color: #667788; background: transparent;
+            border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.2s; margin-top: 5px;
+        }
+        .btn-template:hover { border-color: #007bff; color: #007bff; background: #fff; }
+
+        /* 预览页：全屏表格 */
+        #previewView {
+            display: none; 
+            padding-top: 40px; 
+            height: 100vh;
+            width: 100%;
+            position: relative;
+            overflow-y: auto; 
+        }
+        table { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #eef1f5; padding: 10px; text-align: center; vertical-align: middle; word-wrap: break-word; }
+        th { 
+	background-color: #007bff; 
+	color: white; 
+	font-size: 14px; 
+	font-weight: 500;
+	letter-spacing: 0.5px; 
+	position: sticky;
+	top: 0px; 
+	z-index: 90; 
+	}
+        tr:nth-child(even) { background-color: #fafbfc; }
+        
+        /* ID列强制缩窄 */
+        td:first-child, th:first-child { 
+	width: 60px; 
+	max-width: 60px; 
+	font-size: 14px; 
+	font-weight: bold; 
+	color: #555; 
+	vertical-align: top;
+	}
+        
+        .image-container { display: flex; justify-content: center; align-items: center; height: 100%; min-height: 200px; }
+        img { max-width: 100%; max-height: 80vh; border-radius: 6px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; object-fit: contain; border: 1px solid #eee; }
+        img:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+
+        /* 左右翻页悬浮按钮 */
+        .nav-btn {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 100px;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(2px);//新增的
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #333;
+            cursor: pointer;
+            z-index: 50;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: #007bff; color: #fff; border-color: #007bff; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background: #fff; color: #333; border-color: #ddd; }
+        .nav-prev { left: 0; border-radius: 0 8px 8px 0; }
+        .nav-next { right: 0; border-radius: 8px 0 0 8px; }
+
+        /* 底部页码 */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 50px;
+            background: rgba(255,255,255,0.95);
+            border-top: 1px solid #eef1f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #555;
+            z-index: 50;
+        }
+        .bottom-bar button { padding: 5px 12px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 4px; font-size: 13px; }
+        .bottom-bar button:hover:not(:disabled) { border-color: #007bff; color: #007bff; }
+        .bottom-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .current-page { font-weight: bold; color: #007bff; margin: 0 5px; }
+
+        /* 模态框 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; cursor: pointer; }
+        .modal-overlay img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+    
+        /* 模态框图片容器样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); /* 更深的背景以便看清图片 */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            overflow: hidden; /* 防止滚动条出现 */
+        }
+
+        /* 图片拖拽中的鼠标样式 */
+        #modalImage:active {
+            cursor: grabbing;
+        }
+
+        /* 缩放滑块样式 */
+        #zoomSlider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #444; /* 轨道背景 */
+            outline: none;
+        }
+
+        /* 滑块按钮 */
+        #zoomSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #007bff; /* 滑块颜色 */
+            cursor: pointer;
+            border: 2px solid #fff; /* 增加一点高光感 */
+        }
+
+        </style>
+</head>
+<body>
+
+        <!-- 顶部导航栏 -->
+        <div class="top-bar">
+            <button class="btn-back" id="backBtn" style="display:none;" onclick="goBackToUpload()"><重新导入</button>
+            <h1 style="font-size: 14px; margin: 0; font-weight: 600; color: #1a2b4a;">🖼️ 安安小工具系列 | 多图对比预览</h1>
+        </div>
+
+        <!-- 视图1：上传区 -->
+        <div id="uploadView">
+            <label for="excelFile" class="upload-area">
+                <div class="upload-icon">📁</div>
+                <div class="upload-title">选择 Excel 文件 (.xlsx / .xls)</div>
+                <div class="upload-hint">点击此处上传包含对比数据的表格</div>
+                <input type="file" id="excelFile" accept=".xlsx, .xls">
+                <button type="button" class="btn-template" onclick="event.stopPropagation(); downloadTemplate();">导入模版下载</button>
+                <div class="status" id="statusText">等待上传...</div>
+            </label>
+        </div>
+    
+        <!-- 视图2：预览区 -->
+        <div id="previewView">
+            <!-- 左右翻页按钮 -->
+            <button class="nav-btn nav-prev" id="prevBtn" onclick="changePage(currentPage - 1)">&lt;</button>
+            <button class="nav-btn nav-next" id="nextBtn" onclick="changePage(currentPage + 1)">&gt;</button>
+
+                <div id="tableContainer"></div>
+
+            <!-- 底部页码与跳转区 -->
+	    <div class="bottom-bar">
+            	    <button onclick="changePage(currentPage - 1)">上一页</button>
+    
+    	<!-- 融合显示与输入区域 -->
+    	<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#555;">
+        	第 
+        	<!-- contenteditable="true" 使其可编辑 -->
+        	<span id="currentIdSpan" 
+              	contenteditable="true" 
+              	style="min-width:30px; border:1px solid #ddd; padding:2px 6px; border-radius:4px; text-align:center; background:#fff; cursor:text;"
+              	onkeydown="handleIdInput(event)"
+              	onblur="jumpOnBlur()">0</span> 
+        	页 / 共 <span id="totalPages">0</span> 页 (ID: <span id="realId">0</span>)
+    	</span>
+    	
+    	<button onclick="changePage(currentPage + 1)">下一页</button>
+            </div>
+    </div>
+
+        <!-- 拖拽上传遮罩层 -->
+        <div id="drop-zone" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(50, 50, 50, 0.7); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; color: white; font-size: 24px; pointer-events: none;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p style="margin-top: 10px;">松开鼠标以导入文件</p>
+        </div>
+
+        <!-- 图片放大模态框 -->
+        <div class="modal-overlay" id="imageModal" onclick="closeModal()">
+            <!-- 关闭按钮：阻止冒泡，防止点击按钮时触发背景的关闭逻辑 -->
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 1001;" onclick="event.stopPropagation(); closeModal();">
+                <button style="background: #333; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 16px;">×</button>
+            </div>
+            <div style="position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden;">
+                <!-- 图片：阻止冒泡，防止拖拽时触发全局的上传检测 -->
+                <img id="modalImage" src="" alt="大图预览" style="max-width: none; max-height: none; cursor: grab; transition: transform 0.1s;" onclick="event.stopPropagation();">
+            </div>
+            <!-- 缩放与旋转控制条 -->
+            <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 300px; z-index: 1001; display: flex; align-items: center; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px;" onclick="event.stopPropagation();">
+                <!-- 旋转按钮 -->
+                <button onclick="event.stopPropagation(); rotateImage(90)" style="background: #007bff; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 10px;" title="顺时针旋转90°">⟳</button>
+    
+                <!-- 缩放滑块 -->
+                <span style="color: #fff; font-size: 12px; margin-right: 10px;">缩放:</span>
+                <input type="range" id="zoomSlider" min="10" max="500" value="100" style="flex: 1;">
+                <span id="zoomValue" style="color: #fff; font-size: 12px; margin-left: 10px;">100%</span>
+            </div>
+        </div>
+
+<script>
+    const uploadView = document.getElementById('uploadView');
+    const previewView = document.getElementById('previewView');
+    const backBtn = document.getElementById('backBtn');
+    const fileInput = document.getElementById('excelFile');
+    const statusText = document.getElementById('statusText');
+    const tableContainer = document.getElementById('tableContainer');
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    // --- 获取新的 DOM 元素 ---
+    const currentIdSpan = document.getElementById('currentIdSpan');
+    const totalPagesSpan = document.getElementById('totalPages');
+    const realIdSpan = document.getElementById('realId');
+    const pageInfo = document.getElementById('pageInfo');
+   // --- 模块框新增：跟踪图片的状态的变量 ---
+    let currentScale = 1; // 当前缩放比例
+    let currentRotation = 0;  //  当前旋转角度
+    let offsetX = 0; // 图片X轴偏移
+    let offsetY = 0; // 图片Y轴偏移
+    let isDragging = false;
+    let startX, startY;
+
+    let allData = [];
+    let headers = [];
+    let currentPage = 1;
+    const pageSize = 1; 
+
+    // --- 1. 视图切换逻辑 ---
+    function switchToPreview() {
+        uploadView.style.display = 'none';
+        previewView.style.display = 'block';
+        backBtn.style.display = 'inline-block';
+    }
+
+    window.goBackToUpload = function() {
+        previewView.style.display = 'none';
+        uploadView.style.display = 'flex';
+        backBtn.style.display = 'none';
+        // 重置文件输入框，允许重新选择同一个文件
+        fileInput.value = '';
+        statusText.textContent = '等待上传...';
+    };
+
+    // --- 2. 模版下载 ---
+    function downloadTemplate() {
+        const templateHeaders = ['id', '原图', '切题图1', '切题图2', '切题图3'];
+        const ws = XLSX.utils.aoa_to_sheet([templateHeaders]);
+        ws['!cols'] = [{ wch: 10 }, { wch: 40 }, { wch: 40 }, { wch: 40 }, { wch: 40 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "对比数据");
+        XLSX.writeFile(wb, "图片对比导入模版.xlsx");
+    }
+
+    // --- 3. 模态框交互 ---
+    modal.addEventListener('click', () => { modal.style.display = 'none'; });
+    window.openModal = function(src) {
+        const img = document.getElementById('modalImage');
+        const modal = document.getElementById('imageModal');
+    
+        // 重置状态
+        currentScale = 1;
+        offsetX = 0;
+        offsetY = 0;
+        document.getElementById('zoomSlider').value = 100;
+        document.getElementById('zoomValue').textContent = '100%';
+    
+        img.src = src;
+        modal.style.display = 'flex';
+    
+        // 强制重绘以确保 transition 生效
+        img.style.transform = `scale(${currentScale}) translate(${offsetX}px, ${offsetY}px)`;
+        };
+        // 关闭按钮
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+            // 重置状态，防止关闭后光标状态残留
+            isDragging = false;
+            img.style.cursor = 'grab';
+        }
+
+    // --- 4. 文件上传与解析 ---
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        statusText.textContent = "正在解析文件...";
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                if (jsonData.length < 2) {
+                    statusText.textContent = "文件中没有有效数据！";
+                    return;
+                }
+
+                headers = jsonData[0];
+                allData = jsonData.slice(1);
+                currentPage = 1;
+                
+                renderTable();
+                updatePaginationUI();
+                switchToPreview(); // 切换到预览视图
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "❌ 解析失败，请确保文件格式正确。";
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // --- 5. 渲染表格 ---
+    function renderTable() {
+        if (allData.length === 0) return;
+        const rowData = allData[currentPage - 1];
+
+        let html = `<table><thead><tr>`;
+        headers.forEach(h => { html += `<th>${h}</th>`; });
+        html += `</tr></thead><tbody><tr>`;
+
+        rowData.forEach((cell, index) => {
+            const val = cell !== undefined ? String(cell) : '';
+            const isImg = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(val) || val.startsWith('http');
+            
+            if (isImg && val) {
+                const safeVal = val.replace(/'/g, "\\'");
+                html += `<td><div class="image-container"><img src="${val}" alt="${headers[index]}" onclick="openModal('${safeVal}')" onerror="this.outerHTML='<span style=color:#ccc;>图片加载失败</span>'"></div></td>`;
+            } else {
+                html += `<td>${val}</td>`;
+            }
+        });
+
+        html += `</tr></tbody></table>`;
+        tableContainer.innerHTML = html;
+    }
+
+    // --- 6. 翻页与键盘监听 ---
+    window.changePage = function(page) {
+        const totalPages = Math.ceil(allData.length / pageSize);
+        if (page < 1 || page > totalPages || page === currentPage) return;
+        currentPage = page;
+        renderTable();
+        updatePaginationUI();
+    };
+
+        // 监听键盘左右方向键
+        document.addEventListener('keydown', function(e) {
+            if (previewView.style.display === 'none') return; // 仅在预览页生效
+            if (e.key === 'ArrowLeft') changePage(currentPage - 1);
+            if (e.key === 'ArrowRight') changePage(currentPage + 1);
+        });
+
+
+
+        // --- 修改 updatePaginationUI 函数 ---
+        function updatePaginationUI() {
+            const totalPages = Math.ceil(allData.length / pageSize);
+            const currentId = allData[currentPage - 1] ? allData[currentPage - 1][0] : currentPage;
+    
+            // 更新显示
+            totalPagesSpan.textContent = totalPages;
+            currentIdSpan.textContent = currentId;
+            realIdSpan.textContent = currentId;
+
+            // 禁用状态
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+        }
+
+        // --- 处理键盘事件 (回车跳转) ---
+        function handleIdInput(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                jumpToTarget();
+            }
+        }
+
+        // --- 处理失焦事件 (点击别处跳转) ---
+        function jumpOnBlur() {
+            // 延迟执行，确保点击按钮等操作优先
+            setTimeout(() => {
+                if (document.activeElement !== currentIdSpan) {
+                    jumpToTarget();
+                }
+            }, 100);
+        }
+
+        // ---  jumpToTarget  ---
+        function jumpToTarget() {
+            const inputVal = currentIdSpan.textContent.trim();
+            if (!inputVal || !allData.length) return;
+
+            const targetNum = parseInt(inputVal);
+            const totalPages = Math.ceil(allData.length / pageSize);
+    
+            // 1. 尝试作为 ID 查找 (查找第一列匹配的行)
+            const idIndex = allData.findIndex(row => row[0] == targetNum);
+            if (idIndex !== -1) {
+                currentPage = idIndex + 1;
+                renderTable();
+                updatePaginationUI();
+                return;
+            }
+
+            // 2. 尝试作为页码查找
+            if (targetNum >= 1 && targetNum <= totalPages) {
+                currentPage = targetNum;
+                renderTable();
+                updatePaginationUI();
+                return;
+            }
+    
+            // 3. 如果都不匹配，恢复显示当前 ID
+            updatePaginationUI();
+    }
+
+        // 拖拽上传逻辑
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('excelFile'); // 对应你页面上那个隐藏的文件输入框
+
+            // 1. 当文件被拖入浏览器窗口时
+            window.addEventListener('dragenter', function(e) {
+                e.preventDefault();
+                dropZone.style.display = 'flex'; // 显示蓝色的提示层
+            });
+
+            // 2. 当文件在窗口内移动时 (必须阻止默认行为，否则无法触发“松开”事件)
+            window.addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
+
+            // 3. 当文件被移出窗口或在窗口内松开鼠标时
+            window.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.style.display = 'none'; // 隐藏提示层
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    // 将拖拽进来的文件赋值给页面上的文件输入框
+                    fileInput.files = files;
+            
+                    // 自动触发文件输入框的 "change" 事件
+                    // 这会直接调用你原本写的解析 Excel 的代码
+                    const event = new Event('change', { bubbles: true });
+                    fileInput.dispatchEvent(event);
+                }
+            });
+        });
+
+        // 初始化缩放滑块监听
+        document.addEventListener('DOMContentLoaded', function() {
+            const slider = document.getElementById('zoomSlider');
+            const zoomValue = document.getElementById('zoomValue');
+    
+            slider.addEventListener('input', function() {
+            currentScale = this.value / 100;
+            zoomValue.textContent = `${this.value}%`;
+            applyTransform();
+        });
+    });
+
+        // --- 应用变换 ---
+        function applyTransform() {
+            const img = document.getElementById('modalImage');
+            // 顺序：先旋转，再缩放，最后平移
+            img.style.transform = `rotate(${currentRotation}deg) scale(${currentScale}) translate(${offsetX}px, ${offsetY}px)`;
+        }
+
+        // --- 替换原有的 openModal 函数 ---
+        window.openModal = function(src) {
+            const img = document.getElementById('modalImage');
+            const modal = document.getElementById('imageModal');
+    
+        // 重置状态
+        currentScale = 1;
+        currentRotation = 0; //  重置旋转角度
+        offsetX = 0;
+        offsetY = 0;
+    
+        document.getElementById('zoomSlider').value = 100;
+        document.getElementById('zoomValue').textContent = '100%';
+    
+        img.src = src;
+        modal.style.display = 'flex';
+    
+        // 强制重绘
+        applyTransform(); 
+    };
+
+        // 拖拽移动逻辑
+        const img = document.getElementById('modalImage');
+        img.addEventListener('mousedown', startDrag);
+        img.addEventListener('mousemove', drag);
+        img.addEventListener('mouseup', endDrag);
+        img.addEventListener('mouseleave', endDrag);
+
+        function startDrag(e) {
+            e.preventDefault(); // 阻止图片的默认拖拽行为（防止触发浏览器的“保存图片”或“上传遮罩”）
+            e.stopPropagation(); // 阻止事件冒泡到父级（防止触发模态框关闭）
+            isDragging = true;
+            startX = e.clientX - offsetX;
+            startY = e.clientY - offsetY;
+            img.style.cursor = 'grabbing';
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            offsetX = e.clientX - startX;
+            offsetY = e.clientY - startY;
+            applyTransform();
+        }
+
+        function endDrag() {
+            isDragging = false;
+            img.style.cursor = 'grab';
+        }
+
+        // 旋转图片函数
+        function rotateImage(degrees) {
+            currentRotation += degrees;
+            // 限制在 0-360 范围内
+            currentRotation = currentRotation % 360;
+            applyTransform();
+        }
+
+</script>
+</body>
+</html>
