@@ -3,744 +3,620 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>安安小工具 - Session 多轮对比预览</title>
+    <title>安安小工具系列 | 多图对比预览</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        :root {
-            --primary: #1d4ed8;
-            --gray-100: #f8fafc;
-            --gray-200: #e5e7eb;
-            --gray-700: #374151;
-            --gray-900: #111827;
-        }
-        * {
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
             margin: 0;
             padding: 0;
+            height: 100vh;
+            overflow: hidden; 
+        }
+
+        /* 顶部导航栏 */
+        .top-bar {
+            min-height: 40px;
+            max-height: 40px;
+            background: #fff;
+            border-bottom: 1px solid #eef1f5;
+            display: flex;
+            align-items: center;
+            padding: 0px 20px;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
             box-sizing: border-box;
         }
-        body {
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: var(--gray-100);
-            color: var(--gray-900);
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        h1 {
-            font-size: 1.8rem;
-            color: var(--primary);
-            margin-bottom: 8px;
-        }
-        .controls {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-            align-items: center;
-            background: white;
-            padding: 14px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-        }
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 16px;
+        .top-bar h1 { font-size: 18px; color: #1a2b4a; margin: 0; font-weight: 600; }
+        .btn-back {
+            padding: 4px 12px;
+            border: 1px solid #d0d7de;
+            color: #555;
+            background: #fff;
             border-radius: 6px;
+            font-size: 12px;
             cursor: pointer;
-            font-weight: 500;
-        }
-        button:hover { opacity: 0.9; }
-
-        .input-section {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.06);
-            margin-bottom: 20px;
-        }
-        .input-header {
-            background: #f3f4f6;
-            padding: 12px 16px;
-            font-weight: 600;
-        }
-        #excel-input {
-            width: 100%;
-            height: 200px;
-            padding: 16px;
-            font-family: monospace;
-            font-size: 13px;
-            border: none;
-            resize: vertical;
-            outline: none;
-            background: #fcfdfd;
-        }
-
-        .result-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-top: 16px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
-        }
-        .result-table th,
-        .result-table td {
-            padding: 12px 10px;
-            text-align: left;
-            border-bottom: 1px solid var(--gray-200);
-            vertical-align: top;
-        }
-
-        .result-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            background: #f9fafb;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-        .th-filter {
-            text-align: right !important;
-            white-space: nowrap;
-            min-width: 220px;
-        }
-        .filter-input {
-            padding: 6px 10px;
-            border: 1px solid #d1d5db;
-            border-radius: 5px;
-            width: 140px;
-            font-size: 13px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .filter-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(29,78,216,0.15);
-        }
-        .filter-label {
-            font-size: 13px;
-            color: var(--gray-700);
-            margin-right: 6px;
-            font-weight: 500;
-        }
-
-        .col-round { width: 70px; font-weight: bold; color: var(--primary); }
-        .col-query { max-width: 300px; word-break: break-word; }
-        .img-cell {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            min-height: 40px;
-            align-items: center;
-        }
-        .img-wrapper {
-            width: 120px;
-            height: 120px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            overflow: hidden;
-            cursor: zoom-in;
-            position: relative;
-            background: #f9fafb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             transition: all 0.2s;
-            flex-shrink: 0;
+            margin-right: 20px;
         }
-        .img-wrapper:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
-        }
-        .img-wrapper img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        .img-label {
-            position: absolute;
-            bottom: 2px;
-            right: 2px;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            font-size: 10px;
-            padding: 1px 4px;
-            border-radius: 2px;
-        }
-        .empty-tag {
-            color: #9ca3af;
-            font-style: italic;
-            font-size: 0.9rem;
-            padding: 8px;
-            background: #f3f4f6;
-            border-radius: 4px;
-            border: 1px dashed #d1d5db;
-        }
+        .btn-back:hover { border-color: #007bff; color: #007bff; }
 
-        /* 灯箱 */
-        .lightbox {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            z-index: 2000;
-            justify-content: center;
+        /* 首页：居中上传区 */
+        #uploadView {
+            display: flex;
             align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100%;
+        }
+        .upload-area {
+            display: flex;
             flex-direction: column;
-        }
-        .lb-title {
-            color: white;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-        .lb-image {
-            max-width: 90vw;
-            max-height: 80vh;
-            object-fit: contain;
-            cursor: grab;
-        }
-        .lb-image:active { cursor: grabbing; }
-        .lb-close {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            color: white;
-            font-size: 40px;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            width: 100%;
+            max-width: 700px;
+            border: 2px dashed #c8d6e5;
+            border-radius: 12px;
+            background-color: #fafbfd;
+            transition: all 0.3s ease;
             cursor: pointer;
         }
-        .lb-tools {
-            margin-top: 15px;
+        .upload-area:hover { border-color: #007bff; background-color: #f0f7ff; box-shadow: 0 0 0 4px rgba(0,123,255,0.05); }
+        .upload-icon { font-size: 36px; margin-bottom: 12px; color: #007bff; }
+        .upload-title { font-size: 17px; font-weight: 600; color: #2c3e50; margin-bottom: 6px; }
+        .upload-hint { font-size: 13px; color: #8899a6; margin-bottom: 15px; }
+        input[type="file"] { display: none; }
+        .status { margin-top: 12px; color: #555; font-size: 13px; text-align: center; min-height: 18px; font-weight: 500; }
+        .btn-template {
+            padding: 6px 14px; border: 1px solid #d0d7de; color: #667788; background: transparent;
+            border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.2s; margin-top: 5px;
+        }
+        .btn-template:hover { border-color: #007bff; color: #007bff; background: #fff; }
+
+        /* 预览页：全屏表格 */
+        #previewView {
+            display: none; 
+            padding-top: 40px; 
+            height: 100vh;
+            width: 100%;
+            position: relative;
+            overflow-y: auto; 
+        }
+        table { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #eef1f5; padding: 10px; text-align: center; vertical-align: middle; word-wrap: break-word; }
+        th { 
+	background-color: #007bff; 
+	color: white; 
+	font-size: 14px; 
+	font-weight: 500;
+	letter-spacing: 0.5px; 
+	position: sticky;
+	top: 0px; 
+	z-index: 90; 
+	}
+        tr:nth-child(even) { background-color: #fafbfc; }
+        
+        /* ID列强制缩窄 */
+        td:first-child, th:first-child { 
+	width: 60px; 
+	max-width: 60px; 
+	font-size: 14px; 
+	font-weight: bold; 
+	color: #555; 
+	vertical-align: top;
+	}
+        
+        .image-container { display: flex; justify-content: center; align-items: center; height: 100%; min-height: 200px; }
+        img { max-width: 100%; max-height: 80vh; border-radius: 6px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; object-fit: contain; border: 1px solid #eee; }
+        img:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+
+        /* 左右翻页悬浮按钮 */
+        .nav-btn {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 100px;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(2px);//新增的
+            border: 1px solid #ddd;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #333;
+            cursor: pointer;
+            z-index: 50;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: #007bff; color: #fff; border-color: #007bff; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background: #fff; color: #333; border-color: #ddd; }
+        .nav-prev { left: 0; border-radius: 0 8px 8px 0; }
+        .nav-next { right: 0; border-radius: 8px 0 0 8px; }
+
+        /* 底部页码 */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 50px;
+            background: rgba(255,255,255,0.95);
+            border-top: 1px solid #eef1f5;
+            display: flex;
+            justify-content: center;
             align-items: center;
             gap: 10px;
-        }
-        .lb-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #zoomVal {
-            color: white;
-            min-width: 52px;
-            text-align: center;
             font-size: 14px;
+            color: #555;
+            z-index: 50;
         }
+        .bottom-bar button { padding: 5px 12px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 4px; font-size: 13px; }
+        .bottom-bar button:hover:not(:disabled) { border-color: #007bff; color: #007bff; }
+        .bottom-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .current-page { font-weight: bold; color: #007bff; margin: 0 5px; }
+
+        /* 模态框 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; cursor: pointer; }
+        .modal-overlay img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+    
+        /* 模态框图片容器样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); /* 更深的背景以便看清图片 */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            overflow: hidden; /* 防止滚动条出现 */
+        }
+
+        /* 图片拖拽中的鼠标样式 */
+        #modalImage:active {
+            cursor: grabbing;
+        }
+
+        /* 缩放滑块样式 */
         #zoomSlider {
-            width: 100px;
-            height: 4px;
-            appearance: none;
-            background: #ddd;
-            border-radius: 2px;
-            cursor: pointer;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #444; /* 轨道背景 */
+            outline: none;
         }
+
+        /* 滑块按钮 */
         #zoomSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
             appearance: none;
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: white;
+            background: #007bff; /* 滑块颜色 */
             cursor: pointer;
+            border: 2px solid #fff; /* 增加一点高光感 */
         }
 
-
-    /* === 模板提示框 === */
-    .input-header {
-        background: #f3f4f6;
-        padding: 12px 16px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        position: relative;
-    }
-
-    .template-hint-trigger {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #d1d5db;
-        color: white;
-        font-size: 12px;
-        font-weight: bold;
-        cursor: help;
-        flex-shrink: 0;
-        transition: background 0.2s;
-        position: relative;
-    }
-
-    .template-hint-trigger:hover {
-        background: var(--primary);
-    }
-
-    /* 表格化提示框 */
-    .template-hint-popup {
-        position: absolute;
-        top: calc(100% + 6px);
-        left: 16px;
-        z-index: 100;
-        background: rgba(17, 24, 39, 0.95);
-        color: #e5e7eb;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-        min-width: 0px;
-        max-width: 420px;
-        opacity: 0;
-        transform: translateY(-4px);
-        transition: opacity 0.25s ease, transform 0.25s ease;
-        pointer-events: none;
-    }
-
-    .template-hint-trigger:hover .template-hint-popup,
-    .template-hint-trigger:focus .template-hint-popup {
-        opacity: 1;
-        transform: translateY(0);
-        pointer-events: auto;
-    }
-
-    /* 表格结构 */
-    .hint-table {
-        display: grid;
-        grid-template-columns: 150px 150px 100px; /* 图片 | 文本 | 轮次 */
-        gap: 0;
-        font-size: 12px;
-        line-height: 1.4;
-        white-space: nowrap;
-        overflow: hidden;
-    }
-
-    .hint-row {
-        display: contents;
-    }
-
-    .hint-cell {
-        padding: 6px 8px;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
-        border-right: 1px solid rgba(255,255,255,0.08);
-        text-overflow: ellipsis;
-        overflow: hidden;
-    }
-    .hint-cell:last-child {
-        border-right: none;
-    }
-
-    /* 表头样式 */
-    .hint-header {
-        background: rgba(59, 130, 246, 0.15); /* primary-500 半透明 */
-        font-weight: 600;
-        color: #93c5fd;
-    }
-
-    /* 数据行样式 */
-    .hint-data:nth-child(even) {
-        background: rgba(255,255,255,0.05);
-    }
-
-    /* 轮次列右对齐 */
-    .hint-col-round {
-        text-align: right;
-        font-family: 'SFMono-Regular', Consolas, monospace;
-        color: #a5b4fc;
-    }
-
-    /* 图片列：截断长URL */
-    .hint-col-img {
-        font-family: 'SFMono-Regular', Consolas, monospace;
-        word-break: break-all;
-        white-space: normal;
-        color: #cbd5e1;
-    }
-    .hint-col-img::before {
-        content: "🔗 ";
-        color: #60a5fa;
-    }
-
-    .hint-col-text {
-        /* 单行截断 */
-        text-overflow: ellipsis;
-        overflow: hidden;
-        color: #f1f5f9;
-    }
-
-    /* 空值标识 */
-    .hint-empty {
-        color: #9ca3af;
-        font-style: italic;
-    }
-
-    /* 小三角箭头（居中对齐） */
-    .template-hint-popup::before {
-        content: '';
-        position: absolute;
-        top: -5px;
-        left: 24px; /* 与问号按钮中心对齐 */
-        width: 10px;
-        height: 10px;
-        background: rgba(17, 24, 39, 0.95);
-        transform: rotate(45deg);
-        z-index: 1;
-    }
-    </style>
+        </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>📌 安安小工具 - Session 多轮对比预览</h1>
-</div>
+        <!-- 顶部导航栏 -->
+        <div class="top-bar">
+            <button class="btn-back" id="backBtn" style="display:none;" onclick="goBackToUpload()"><重新导入</button>
+            <h1 style="font-size: 14px; margin: 0; font-weight: 600; color: #1a2b4a;">🖼️ 安安小工具系列 | 多图对比预览</h1>
+        </div>
 
-<div class="controls">
-    <button onclick="parseData()">解析粘贴内容</button>
-    <button onclick="clearAll()" style="background:#64748b;">清空</button>
-</div>
+        <!-- 视图1：上传区 -->
+        <div id="uploadView">
+            <label for="excelFile" class="upload-area">
+                <div class="upload-icon">📁</div>
+                <div class="upload-title">选择 Excel 文件 (.xlsx / .xls)</div>
+                <div class="upload-hint">点击此处上传包含对比数据的表格</div>
+                <input type="file" id="excelFile" accept=".xlsx, .xls">
+                <button type="button" class="btn-template" onclick="event.stopPropagation(); downloadTemplate();">导入模版下载</button>
+                <div class="status" id="statusText">等待上传...</div>
+            </label>
+        </div>
+    
+        <!-- 视图2：预览区 -->
+        <div id="previewView">
+            <!-- 左右翻页按钮 -->
+            <button class="nav-btn nav-prev" id="prevBtn" onclick="changePage(currentPage - 1)">&lt;</button>
+            <button class="nav-btn nav-next" id="nextBtn" onclick="changePage(currentPage + 1)">&gt;</button>
 
-<div class="input-section">
-    <div class="input-header">
-        请在这里直接 Ctrl+V 粘贴 Excel 内容
-        <span class="template-hint-trigger" tabindex="0" aria-label="查看粘贴模板格式">
-            ?
-            <!--  表格化提示框 -->
-            <div class="template-hint-popup">
-                <div class="hint-table">
-                    <!-- 表头 -->
-                    <div class="hint-row">
-                        <div class="hint-cell hint-header hint-col-img">图片query</div>
-                        <div class="hint-cell hint-header hint-col-text">文本query</div>
-                        <div class="hint-cell hint-header hint-col-round">session内第几轮</div>
-                    </div>
-                    <!-- 示例行 1 -->
-                    <div class="hint-row hint-data">
-                        <div class="hint-cell hint-col-img">https://img.example.com/a.jpg</div>
-                        <div class="hint-cell hint-col-text">解答题目</div>
-                        <div class="hint-cell hint-col-round">1</div>
-                    </div>
-                    <!-- 示例行 2 -->
-                    <div class="hint-row hint-data">
-                        <div class="hint-cell hint-col-img">https://img.example.com/b.jpg</div>
-                        <div class="hint-cell hint-col-text">免疫细胞有哪些</div>
-                        <div class="hint-cell hint-col-round">2</div>
-                    </div>
-                    <!-- 示例行 3（空图片） -->
-                    <div class="hint-row hint-data">
-                        <div class="hint-cell hint-col-img"><span class="hint-empty">—</span></div>
-                        <div class="hint-cell hint-col-text">这道题是多选你怎么只给了一个答案</div>
-                        <div class="hint-cell hint-col-round">3</div>
-                    </div>
-                </div>
+                <div id="tableContainer"></div>
+
+            <!-- 底部页码与跳转区 -->
+	    <div class="bottom-bar">
+            	    <button onclick="changePage(currentPage - 1)">上一页</button>
+    
+    	<!-- 融合显示与输入区域 -->
+    	<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#555;">
+        	第 
+        	<!-- contenteditable="true" 使其可编辑 -->
+        	<span id="currentIdSpan" 
+              	contenteditable="true" 
+              	style="min-width:30px; border:1px solid #ddd; padding:2px 6px; border-radius:4px; text-align:center; background:#fff; cursor:text;"
+              	onkeydown="handleIdInput(event)"
+              	onblur="jumpOnBlur()">0</span> 
+        	页 / 共 <span id="totalPages">0</span> 页 (ID: <span id="realId">0</span>)
+    	</span>
+    	
+    	<button onclick="changePage(currentPage + 1)">下一页</button>
             </div>
-        </span>
     </div>
-    <textarea id="excel-input" placeholder="将 Excel 中的整列或整块区域复制粘贴到这里..."></textarea>
-</div>
 
-<table class="result-table" id="resultTable">
-    <thead>
-        <tr>
-            <th class="col-round">轮数</th>
-            <th class="col-query">文本query</th>
-            <th class="th-filter">
-                <span class="filter-label">筛选轮次：</span>
-                <input type="text" class="filter-input" id="filterRound" placeholder="如: 1,3,5-8" oninput="applyFilter()">
-            </th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr><td colspan="3" style="text-align:center;padding:40px;color:#999;">等待粘贴数据...</td></tr>
-    </tbody>
-</table>
+        <!-- 拖拽上传遮罩层 -->
+        <div id="drop-zone" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(50, 50, 50, 0.7); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; color: white; font-size: 24px; pointer-events: none;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p style="margin-top: 10px;">松开鼠标以导入文件</p>
+        </div>
 
-<!-- 灯箱 -->
-<div class="lightbox" id="lightbox" onclick="if(event.target===this) closeLB()">
-    <div class="lb-close" onclick="closeLB()">&times;</div>
-    <div class="lb-title" id="lbTitle"></div>
-    <img src="" class="lb-image" id="lbImg">
-    <div class="lb-tools">
-        <button class="lb-btn" onclick="rotate(-90)">↺</button>
-        <span id="zoomVal">100%</span>
-        <input type="range" id="zoomSlider" min="0.1" max="8" step="0.1" value="1">
-    </div>
-</div>
+        <!-- 图片放大模态框 -->
+        <div class="modal-overlay" id="imageModal" onclick="closeModal()">
+            <!-- 关闭按钮：阻止冒泡，防止点击按钮时触发背景的关闭逻辑 -->
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 1001;" onclick="event.stopPropagation(); closeModal();">
+                <button style="background: #333; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 16px;">×</button>
+            </div>
+            <div style="position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden;">
+                <!-- 图片：阻止冒泡，防止拖拽时触发全局的上传检测 -->
+                <img id="modalImage" src="" alt="大图预览" style="max-width: none; max-height: none; cursor: grab; transition: transform 0.1s;" onclick="event.stopPropagation();">
+            </div>
+            <!-- 缩放与旋转控制条 -->
+            <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 300px; z-index: 1001; display: flex; align-items: center; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px;" onclick="event.stopPropagation();">
+                <!-- 旋转按钮 -->
+                <button onclick="event.stopPropagation(); rotateImage(90)" style="background: #007bff; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 10px;" title="顺时针旋转90°">⟳</button>
+    
+                <!-- 缩放滑块 -->
+                <span style="color: #fff; font-size: 12px; margin-right: 10px;">缩放:</span>
+                <input type="range" id="zoomSlider" min="10" max="500" value="100" style="flex: 1;">
+                <span id="zoomValue" style="color: #fff; font-size: 12px; margin-left: 10px;">100%</span>
+            </div>
+        </div>
 
 <script>
-// === 禁用拖拽 ===
-document.addEventListener('dragstart', e => {
-    if (e.target.tagName === 'IMG' || e.target.closest('.img-wrapper')) {
-        e.preventDefault();
-        e.stopPropagation();
+    const uploadView = document.getElementById('uploadView');
+    const previewView = document.getElementById('previewView');
+    const backBtn = document.getElementById('backBtn');
+    const fileInput = document.getElementById('excelFile');
+    const statusText = document.getElementById('statusText');
+    const tableContainer = document.getElementById('tableContainer');
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    // --- 获取新的 DOM 元素 ---
+    const currentIdSpan = document.getElementById('currentIdSpan');
+    const totalPagesSpan = document.getElementById('totalPages');
+    const realIdSpan = document.getElementById('realId');
+    const pageInfo = document.getElementById('pageInfo');
+   // --- 模块框新增：跟踪图片的状态的变量 ---
+    let currentScale = 1; // 当前缩放比例
+    let currentRotation = 0;  //  当前旋转角度
+    let offsetX = 0; // 图片X轴偏移
+    let offsetY = 0; // 图片Y轴偏移
+    let isDragging = false;
+    let startX, startY;
+
+    let allData = [];
+    let headers = [];
+    let currentPage = 1;
+    const pageSize = 1; 
+
+    // --- 1. 视图切换逻辑 ---
+    function switchToPreview() {
+        uploadView.style.display = 'none';
+        previewView.style.display = 'block';
+        backBtn.style.display = 'inline-block';
     }
-}, true);
 
-// === 灯箱状态 ===
-let scale = 1, rot = 0, imgX = 0, imgY = 0;
-let isDragging = false, startX = 0, startY = 0;
+    window.goBackToUpload = function() {
+        previewView.style.display = 'none';
+        uploadView.style.display = 'flex';
+        backBtn.style.display = 'none';
+        // 重置文件输入框，允许重新选择同一个文件
+        fileInput.value = '';
+        statusText.textContent = '等待上传...';
+    };
 
-const lb = document.getElementById('lightbox');
-const lbImg = document.getElementById('lbImg');
-const zoomVal = document.getElementById('zoomVal');
-const zoomSlider = document.getElementById('zoomSlider');
-
-// 初始化滑块
-zoomSlider.oninput = () => {
-    scale = parseFloat(zoomSlider.value);
-    updateTransform();
-    zoomVal.textContent = Math.round(scale * 100) + '%';
-};
-
-function openLB(url, round, query) {
-    lbImg.src = url;
-    document.getElementById('lbTitle').textContent = `轮次 #${round} | ${query || '(无文本)'}`;
-    scale = 1; rot = 0; imgX = 0; imgY = 0;
-    zoomSlider.value = '1';
-    zoomVal.textContent = '100%';
-    updateTransform();
-    lb.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeLB() {
-    lb.style.display = 'none';
-    document.body.style.overflow = '';
-    lbImg.src = '';
-    isDragging = false;
-}
-
-function updateTransform() {
-    lbImg.style.transform = `translate(${imgX}px, ${imgY}px) rotate(${rot}deg) scale(${scale})`;
-    lbImg.style.transition = isDragging ? 'none' : 'transform 0.15s ease-out';
-}
-
-// Ctrl+滚轮缩放
-lbImg.parentElement.addEventListener('wheel', e => {
-    if (e.ctrlKey) {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        scale = Math.max(0.1, Math.min(8, scale + delta));
-        zoomSlider.value = scale.toFixed(1);
-        zoomVal.textContent = Math.round(scale * 100) + '%';
-        updateTransform();
-    } else {
-        e.preventDefault();
-        imgX -= e.deltaX * 0.5;
-        imgY -= e.deltaY * 0.5;
-        updateTransform();
+    // --- 2. 模版下载 ---
+    function downloadTemplate() {
+        const templateHeaders = ['id', '原图', '切题图1', '切题图2', '切题图3'];
+        const ws = XLSX.utils.aoa_to_sheet([templateHeaders]);
+        ws['!cols'] = [{ wch: 10 }, { wch: 40 }, { wch: 40 }, { wch: 40 }, { wch: 40 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "对比数据");
+        XLSX.writeFile(wb, "图片对比导入模版.xlsx");
     }
-}, { passive: false });
 
-lbImg.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    e.preventDefault(); 
-    isDragging = true;
-    startX = e.clientX - imgX;
-    startY = e.clientY - imgY;
-    lbImg.style.cursor = 'grabbing';
-    updateTransform();
-});
+    // --- 3. 模态框交互 ---
+    modal.addEventListener('click', () => { modal.style.display = 'none'; });
+    window.openModal = function(src) {
+        const img = document.getElementById('modalImage');
+        const modal = document.getElementById('imageModal');
+    
+        // 重置状态
+        currentScale = 1;
+        offsetX = 0;
+        offsetY = 0;
+        document.getElementById('zoomSlider').value = 100;
+        document.getElementById('zoomValue').textContent = '100%';
+    
+        img.src = src;
+        modal.style.display = 'flex';
+    
+        // 强制重绘以确保 transition 生效
+        img.style.transform = `scale(${currentScale}) translate(${offsetX}px, ${offsetY}px)`;
+        };
+        // 关闭按钮
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+            // 重置状态，防止关闭后光标状态残留
+            isDragging = false;
+            img.style.cursor = 'grab';
+        }
 
-document.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    imgX = e.clientX - startX;
-    imgY = e.clientY - startY;
-    updateTransform();
-});
+    // --- 4. 文件上传与解析 ---
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-const stopDrag = () => {
-    if (isDragging) {
-        isDragging = false;
-        lbImg.style.cursor = 'grab';
-        updateTransform();
-    }
-};
-document.addEventListener('mouseup', stopDrag);
-document.addEventListener('mouseleave', stopDrag);
+        statusText.textContent = "正在解析文件...";
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                if (jsonData.length < 2) {
+                    statusText.textContent = "文件中没有有效数据！";
+                    return;
+                }
 
-// 键盘
-document.addEventListener('keydown', e => {
-    if (lb.style.display !== 'flex') return;
-    if (e.key === 'Escape') closeLB();
-    if (e.key === '+' || e.key === '=') {
-        e.preventDefault();
-        scale = Math.min(8, scale + 0.1);
-        zoomSlider.value = scale.toFixed(1);
-        zoomVal.textContent = Math.round(scale * 100) + '%';
-        updateTransform();
-    }
-    if (e.key === '-' || e.key === '_') {
-        e.preventDefault();
-        scale = Math.max(0.1, scale - 0.1);
-        zoomSlider.value = scale.toFixed(1);
-        zoomVal.textContent = Math.round(scale * 100) + '%';
-        updateTransform();
-    }
-    if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        rot = (rot + 90) % 360;
-        updateTransform();
-    }
-});
-
-function rotate(deg) {
-    rot = (rot + deg + 360) % 360;
-    updateTransform();
-}
-
-// === 数据解析 ===
-function parseData() {
-    const raw = document.getElementById('excel-input').value.trim();
-    if (!raw) return alert('请先粘贴数据');
-
-    const rows = [];
-    const lines = raw.split(/\r?\n/);
-    let buffer = "";
-    let inQuotes = false;
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const quoteCount = (line.match(/"/g) || []).length;
-        
-        if (inQuotes) {
-            buffer += "\n" + line;
-            if ((buffer.match(/"/g) || []).length % 2 === 0) {
-                processRow(buffer, rows);
-                buffer = "";
-                inQuotes = false;
+                headers = jsonData[0];
+                allData = jsonData.slice(1);
+                currentPage = 1;
+                
+                renderTable();
+                updatePaginationUI();
+                switchToPreview(); // 切换到预览视图
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "❌ 解析失败，请确保文件格式正确。";
             }
-        } else {
-            if (quoteCount % 2 !== 0) {
-                buffer = line;
-                inQuotes = true;
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // --- 5. 渲染表格 ---
+    function renderTable() {
+        if (allData.length === 0) return;
+        const rowData = allData[currentPage - 1];
+
+        let html = `<table><thead><tr>`;
+        headers.forEach(h => { html += `<th>${h}</th>`; });
+        html += `</tr></thead><tbody><tr>`;
+
+        rowData.forEach((cell, index) => {
+            const val = cell !== undefined ? String(cell) : '';
+            const isImg = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(val) || val.startsWith('http');
+            
+            if (isImg && val) {
+                const safeVal = val.replace(/'/g, "\\'");
+                html += `<td><div class="image-container"><img src="${val}" alt="${headers[index]}" onclick="openModal('${safeVal}')" onerror="this.outerHTML='<span style=color:#ccc;>图片加载失败</span>'"></div></td>`;
             } else {
-                processRow(line, rows);
+                html += `<td>${val}</td>`;
+            }
+        });
+
+        html += `</tr></tbody></table>`;
+        tableContainer.innerHTML = html;
+    }
+
+    // --- 6. 翻页与键盘监听 ---
+    window.changePage = function(page) {
+        const totalPages = Math.ceil(allData.length / pageSize);
+        if (page < 1 || page > totalPages || page === currentPage) return;
+        currentPage = page;
+        renderTable();
+        updatePaginationUI();
+    };
+
+        // 监听键盘左右方向键
+        document.addEventListener('keydown', function(e) {
+            if (previewView.style.display === 'none') return; // 仅在预览页生效
+            if (e.key === 'ArrowLeft') changePage(currentPage - 1);
+            if (e.key === 'ArrowRight') changePage(currentPage + 1);
+        });
+
+
+
+        // --- 修改 updatePaginationUI 函数 ---
+        function updatePaginationUI() {
+            const totalPages = Math.ceil(allData.length / pageSize);
+            const currentId = allData[currentPage - 1] ? allData[currentPage - 1][0] : currentPage;
+    
+            // 更新显示
+            totalPagesSpan.textContent = totalPages;
+            currentIdSpan.textContent = currentId;
+            realIdSpan.textContent = currentId;
+
+            // 禁用状态
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+        }
+
+        // --- 处理键盘事件 (回车跳转) ---
+        function handleIdInput(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                jumpToTarget();
             }
         }
-    }
 
-    renderTable(rows);
-    applyFilter();
-}
-
-function processRow(rowStr, results) {
-    rowStr = rowStr.trim();
-    if (!rowStr) return;
-
-    const lastTabIdx = rowStr.lastIndexOf('\t');
-    if (lastTabIdx === -1) return;
-    
-    const roundStr = rowStr.substring(lastTabIdx + 1).trim().replace(/^"|"$/g, '');
-    if (!/^\d+$/.test(roundStr)) return;
-
-    const remain = rowStr.substring(0, lastTabIdx);
-    const firstTabIdx = remain.indexOf('\t');
-    
-    let urlBlock = "", query = "";
-    
-    if (firstTabIdx === -1) {
-        // 空首列判断
-        const trimmedRemain = remain.trim().replace(/^"|"$/g, '');
-        if (!trimmedRemain.includes('\n') && !/^https?:\/\//i.test(trimmedRemain)) {
-            query = trimmedRemain;
-            urlBlock = "";
-        } else {
-            urlBlock = trimmedRemain;
-            query = "";
+        // --- 处理失焦事件 (点击别处跳转) ---
+        function jumpOnBlur() {
+            // 延迟执行，确保点击按钮等操作优先
+            setTimeout(() => {
+                if (document.activeElement !== currentIdSpan) {
+                    jumpToTarget();
+                }
+            }, 100);
         }
-    } else {
-        urlBlock = remain.substring(0, firstTabIdx).trim().replace(/^"|"$/g, '');
-        query = remain.substring(firstTabIdx + 1).trim().replace(/^"|"$/g, '');
+
+        // ---  jumpToTarget  ---
+        function jumpToTarget() {
+            const inputVal = currentIdSpan.textContent.trim();
+            if (!inputVal || !allData.length) return;
+
+            const targetNum = parseInt(inputVal);
+            const totalPages = Math.ceil(allData.length / pageSize);
+    
+            // 1. 尝试作为 ID 查找 (查找第一列匹配的行)
+            const idIndex = allData.findIndex(row => row[0] == targetNum);
+            if (idIndex !== -1) {
+                currentPage = idIndex + 1;
+                renderTable();
+                updatePaginationUI();
+                return;
+            }
+
+            // 2. 尝试作为页码查找
+            if (targetNum >= 1 && targetNum <= totalPages) {
+                currentPage = targetNum;
+                renderTable();
+                updatePaginationUI();
+                return;
+            }
+    
+            // 3. 如果都不匹配，恢复显示当前 ID
+            updatePaginationUI();
     }
 
-    if (urlBlock.startsWith('"') && urlBlock.endsWith('"')) {
-        urlBlock = urlBlock.slice(1, -1);
-    }
+        // 拖拽上传逻辑
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('excelFile'); // 对应你页面上那个隐藏的文件输入框
 
-    const urls = urlBlock.split(/\r?\n/)
-        .map(u => u.trim())
-        .filter(u => /^https?:\/\//i.test(u));
+            // 1. 当文件被拖入浏览器窗口时
+            window.addEventListener('dragenter', function(e) {
+                e.preventDefault();
+                dropZone.style.display = 'flex'; // 显示蓝色的提示层
+            });
 
-    results.push({
-        round: parseInt(roundStr),
-        query: query || "",
-        urls: urls
-    });
-}
+            // 2. 当文件在窗口内移动时 (必须阻止默认行为，否则无法触发“松开”事件)
+            window.addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
 
-function renderTable(data) {
-    const tbody = document.querySelector('#resultTable tbody');
-    if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:#ef4444;">未解析到有效数据，请确认格式正确</td></tr>';
-        return;
-    }
+            // 3. 当文件被移出窗口或在窗口内松开鼠标时
+            window.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.style.display = 'none'; // 隐藏提示层
 
-    tbody.innerHTML = data.map(r => {
-        const imgHtml = r.urls.length > 0 
-            ? r.urls.map((u, i) => `
-                <div class="img-wrapper" onclick="openLB('${u}', ${r.round}, '${escapeAttr(r.query)}')">
-                    <img src="${u}" loading="lazy" onerror="this.style.display='none'">
-                    <span class="img-label">${i+1}</span>
-                </div>
-              `).join('')
-            : '<span class="empty-tag">(空)</span>';
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    // 将拖拽进来的文件赋值给页面上的文件输入框
+                    fileInput.files = files;
+            
+                    // 自动触发文件输入框的 "change" 事件
+                    // 这会直接调用你原本写的解析 Excel 的代码
+                    const event = new Event('change', { bubbles: true });
+                    fileInput.dispatchEvent(event);
+                }
+            });
+        });
 
-        return `
-            <tr data-r="${r.round}">
-                <td class="col-round">${r.round}</td>
-                <td class="col-query">${escapeHtml(r.query)}</td>
-                <td class="img-cell">${imgHtml}</td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function applyFilter() {
-    const val = document.getElementById('filterRound').value.trim();
-    const trs = document.querySelectorAll('#resultTable tbody tr');
-    if (!val) { trs.forEach(t => t.style.display = ''); return; }
-
-    const set = new Set();
-    val.split(',').forEach(p => {
-        p = p.trim();
-        if (p.includes('-')) {
-            const [a,b] = p.split('-').map(Number);
-            if(!isNaN(a) && !isNaN(b)) for(let i=a; i<=b; i++) set.add(i);
-        } else if(!isNaN(p)) set.add(Number(p));
+        // 初始化缩放滑块监听
+        document.addEventListener('DOMContentLoaded', function() {
+            const slider = document.getElementById('zoomSlider');
+            const zoomValue = document.getElementById('zoomValue');
+    
+            slider.addEventListener('input', function() {
+            currentScale = this.value / 100;
+            zoomValue.textContent = `${this.value}%`;
+            applyTransform();
+        });
     });
 
-    trs.forEach(t => {
-        const r = Number(t.dataset.r);
-        t.style.display = set.has(r) ? '' : 'none';
-    });
-}
+        // --- 应用变换 ---
+        function applyTransform() {
+            const img = document.getElementById('modalImage');
+            // 顺序：先旋转，再缩放，最后平移
+            img.style.transform = `rotate(${currentRotation}deg) scale(${currentScale}) translate(${offsetX}px, ${offsetY}px)`;
+        }
 
-function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, c => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    })[c]);
-}
-function escapeAttr(s) {
-    return s.replace(/'/g, "\\'").replace(/\n/g, " ");
-}
-function clearAll() {
-    document.getElementById('excel-input').value = '';
-    document.querySelector('#resultTable tbody').innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:#999;">等待粘贴数据...</td></tr>';
-    document.getElementById('filterRound').value = '';
-}
+        // --- 替换原有的 openModal 函数 ---
+        window.openModal = function(src) {
+            const img = document.getElementById('modalImage');
+            const modal = document.getElementById('imageModal');
+    
+        // 重置状态
+        currentScale = 1;
+        currentRotation = 0; //  重置旋转角度
+        offsetX = 0;
+        offsetY = 0;
+    
+        document.getElementById('zoomSlider').value = 100;
+        document.getElementById('zoomValue').textContent = '100%';
+    
+        img.src = src;
+        modal.style.display = 'flex';
+    
+        // 强制重绘
+        applyTransform(); 
+    };
+
+        // 拖拽移动逻辑
+        const img = document.getElementById('modalImage');
+        img.addEventListener('mousedown', startDrag);
+        img.addEventListener('mousemove', drag);
+        img.addEventListener('mouseup', endDrag);
+        img.addEventListener('mouseleave', endDrag);
+
+        function startDrag(e) {
+            e.preventDefault(); // 阻止图片的默认拖拽行为（防止触发浏览器的“保存图片”或“上传遮罩”）
+            e.stopPropagation(); // 阻止事件冒泡到父级（防止触发模态框关闭）
+            isDragging = true;
+            startX = e.clientX - offsetX;
+            startY = e.clientY - offsetY;
+            img.style.cursor = 'grabbing';
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            offsetX = e.clientX - startX;
+            offsetY = e.clientY - startY;
+            applyTransform();
+        }
+
+        function endDrag() {
+            isDragging = false;
+            img.style.cursor = 'grab';
+        }
+
+        // 旋转图片函数
+        function rotateImage(degrees) {
+            currentRotation += degrees;
+            // 限制在 0-360 范围内
+            currentRotation = currentRotation % 360;
+            applyTransform();
+        }
+
 </script>
 </body>
 </html>
